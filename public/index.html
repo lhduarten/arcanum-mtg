@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="clean.css">
 </head>
 <body>
 
@@ -15,18 +16,18 @@
   <div class="orbs"><i class="w"></i><i class="u"></i><i class="b"></i><i class="r"></i><i class="g"></i></div>
   <div class="lobby-card">
     <h1>ARCANUM</h1>
-    <p class="tag">Mesa de Magic: The Gathering online — Commander, sem fricção.</p>
+    <p class="tag">Mesa de Magic: The Gathering — Commander</p>
     <label>Seu nome<input id="in-name" class="inp" maxlength="24" placeholder="Planeswalker" autocomplete="off"></label>
-    <div class="row">
-      <button id="btn-create" class="btn primary big">✦ Criar sala</button>
-    </div>
-    <div class="or"><span>ou entre em uma sala</span></div>
+    <button id="btn-solo" class="btn primary big">▶ Jogar sozinho (testar deck)</button>
+    <div class="or"><span>com amigos</span></div>
     <div class="row">
       <input id="in-room" class="inp code" maxlength="8" placeholder="CÓDIGO" autocomplete="off">
       <button id="btn-join" class="btn big">Entrar</button>
+      <button id="btn-create" class="btn big">Criar</button>
     </div>
-    <label id="srvwrap" class="hidden">Servidor de jogo (ex.: https://meu-servidor.com)<input id="in-server" class="inp" placeholder="https://..." autocomplete="off"></label>
-    <button id="btn-lobby-decks" class="link">📚 Montar e gerenciar meus decks</button>
+    <label id="srvwrap" class="hidden">Servidor de jogo<input id="in-server" class="inp" placeholder="https://meu-servidor.com" autocomplete="off"></label>
+    <p id="srvnote" class="muted small hidden">O modo com amigos precisa de um servidor rodando. Informe o endereço acima, ou use o modo solo.</p>
+    <button id="btn-lobby-decks" class="link">Meus decks</button>
   </div>
 </div>
 
@@ -34,47 +35,32 @@
 <div id="game" class="screen hidden">
   <header id="topbar">
     <div class="brand">ARCANUM</div>
-    <div class="room"><span id="conn" class="conn bad"></span>Sala <b id="roomcode"></b><button id="btn-invite" class="mini" title="Copiar link de convite">🔗 Convidar</button></div>
-    <div class="turnbox"><b id="turnnum">Aguardando início</b><span id="turnwho"></span></div>
-    <div id="phases"></div>
-    <button id="btn-start" class="btn primary sm">▶ Iniciar jogo</button>
-    <button id="btn-next" class="btn primary sm hidden">Próximo turno ⏭</button>
+    <div class="turnbox"><span id="conn" class="conn bad"></span><b id="turnnum">Aguardando</b><span id="turnwho"></span><em id="phasename"></em></div>
     <div class="spacer"></div>
-    <label class="zoomwrap" title="Tamanho das cartas">🔍<input id="zoom" type="range" min=".7" max="1.7" step=".05" value="1"></label>
-    <button id="btn-undo" class="btn sm" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
-    <button id="btn-draw" class="btn sm" title="Comprar (D)">🂠 Comprar</button>
-    <button id="btn-untap" class="btn sm" title="Desvirar tudo (U)">↻ Desvirar</button>
-    <button id="btn-tokens" class="btn sm">✚ Ficha</button>
-    <button id="btn-decks" class="btn sm">📚 Decks</button>
-    <button id="btn-help" class="btn sm icon" title="Atalhos">?</button>
-    <button id="btn-side" class="btn sm icon" title="Log / chat">☰</button>
+    <button id="btn-primary" class="btn primary sm hidden"></button>
+    <button id="btn-next" class="btn sm hidden">Passar turno</button>
+    <button id="btn-menu" class="btn sm icon" title="Menu">⋯</button>
   </header>
 
   <main id="table">
     <div id="opps"></div>
     <div id="me"></div>
+    <div id="combatbar" class="hidden"><span id="combattext"></span><button id="btn-combat" class="btn primary sm"></button></div>
     <div id="stackzone"><div class="sz-head"><b id="stacktitle">Pilha</b><span id="passinfo"></span></div>
-      <div id="stackcards"></div><div class="sz-hint">Solte aqui para conjurar</div>
-      <div class="sz-act"><button id="btn-resolve" class="btn sm primary">✔ Resolver</button><button id="btn-pass" class="btn sm">Passar prioridade</button></div></div>
-    <div id="deckprompt" class="hidden"><div class="dp-card"><h2>Escolha seu deck</h2><p>Carregue um baralho para comprar sua mão inicial.</p><div id="dp-actions" class="row"></div></div></div>
-    <div id="callouts"></div>
+      <div id="stackcards"></div><div id="stackbar"><i></i></div>
+      <div class="sz-act"><button id="btn-hold" class="btn sm" title="Pausa a resolução automática">✋ Responder</button><button id="btn-resolve" class="btn sm primary">Resolver</button></div></div>
+    <div id="deckprompt" class="hidden"><div class="dp-card"><h2>Escolha seu deck</h2><div id="dp-actions" class="row"></div></div></div>
+    <div id="mull" class="hidden"><div class="mull-card"><h2 id="mulltitle">Sua mão inicial</h2><p id="mulltext" class="muted"></p><div id="mullhand"></div><div class="row"><button id="btn-keep" class="btn primary big">Manter</button><button id="btn-mull" class="btn big">Mulligan</button></div></div></div>
+    <button id="btn-chat" class="chatbtn" title="Registro e chat">💬<i id="chatbadge" class="hidden"></i></button>
   </main>
 
   <aside id="side">
-    <div id="preview"><img alt=""><div class="pv-meta"><b class="pv-name"></b><span class="pv-mana"></span><em class="pv-type"></em><small class="pv-extra"></small></div></div>
-    <div class="side-head">Registro da partida</div>
+    <div class="side-head"><span>Registro</span><button id="btn-side-x" class="x">✕</button></div>
     <div id="log"></div>
-    <div class="opts">
-      <label><input type="checkbox" data-setting="autoCommander" checked> Comandante volta à zona de comando</label>
-      <label><input type="checkbox" data-setting="autoDamage" checked> Dano letal destrói criaturas</label>
-      <label><input type="checkbox" data-setting="autoUntap" checked> Desvirar no início do turno</label>
-      <label><input type="checkbox" data-setting="autoDraw" checked> Comprar no início do turno</label>
-    </div>
     <form id="chatform"><input id="chatin" class="inp" placeholder="Mensagem (Enter)…" maxlength="300" autocomplete="off"></form>
   </aside>
 
   <footer id="handbar">
-    <div class="hand-label">Mão <b id="handcount">0</b></div>
     <div id="hand"></div>
   </footer>
 </div>
@@ -82,20 +68,17 @@
 <div id="help" class="hidden"><button class="x">✕</button>
   <h3>Atalhos & gestos</h3>
   <ul>
-    <li><kbd>D</kbd> comprar · <kbd>S</kbd> embaralhar · <kbd>U</kbd> desvirar tudo</li>
-    <li><kbd>T</kbd> virar · <kbd>F</kbd> face para baixo · <kbd>X</kbd> transformar</li>
-    <li><kbd>G</kbd> cemitério · <kbd>E</kbd> exílio · <kbd>H</kbd> mão</li>
-    <li><kbd>C</kbd>/<kbd>V</kbd> +1/+1 · −1/−1 · <kbd>+</kbd>/<kbd>−</kbd> lealdade</li>
-    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer sua última ação</li>
-    <li><kbd>Espaço</kbd> resolver pilha / passar prioridade</li>
-    <li><kbd>1</kbd>–<kbd>5</kbd> avisos rápidos (Prioridade?, Espera!…)</li>
-    <li><kbd>Alt</kbd>+clique faz um ping em carta ou ponto da mesa</li>
-    <li>Duplo clique: virar / jogar · Botão direito: menu · Arraste em área vazia: selecionar</li>
-    <li>Clique em um contador: +1 · botão direito: −1</li>
+    <li><kbd>Duplo clique</kbd> na mão joga a carta (mana paga sozinha) · no campo vira · em combate ataca</li>
+    <li><kbd>Arrastar</kbd> move cartas · arrastar em área vazia seleciona várias</li>
+    <li><kbd>Botão direito</kbd> menu da carta · clique em contador: +1 · direito: −1</li>
+    <li><kbd>A</kbd> atacar com a seleção · <kbd>B</kbd> concluir bloqueios · <kbd>Espaço</kbd> próxima etapa</li>
+    <li><kbd>T</kbd> virar · <kbd>G</kbd> cemitério · <kbd>E</kbd> exílio · <kbd>H</kbd> mão · <kbd>F</kbd> face p/ baixo · <kbd>X</kbd> transformar</li>
+    <li><kbd>C</kbd>/<kbd>V</kbd> +1/+1 · −1/−1 · <kbd>D</kbd> comprar · <kbd>S</kbd> embaralhar · <kbd>U</kbd> desvirar tudo</li>
+    <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfazer · <kbd>1</kbd>–<kbd>5</kbd> avisos rápidos · <kbd>Alt</kbd>+clique ping</li>
   </ul>
-  <p>As teclas agem na carta sob o mouse (ou na seleção).</p>
 </div>
 
+<div id="preview"><img alt=""><div class="pv-meta"><b class="pv-name"></b><span class="pv-mana"></span><em class="pv-type"></em><small class="pv-extra"></small></div></div>
 <div id="banner"></div>
 <div id="pings"></div>
 <div id="toasts"></div>

@@ -1,7 +1,7 @@
 // Gerenciador de decks: meus decks (localStorage), construtor (busca Scryfall), busca de decks online (Archidekt), importar lista
 import { $, $$, el, modal, toast, manaHTML } from './ui.js';
 import * as scry from './scry.js';
-import { send, apiUrl } from './net.js';
+import { send, apiUrl, serverBase } from './net.js';
 
 const KEY = 'mtg.decks.v1';
 export const loadDecks = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
@@ -248,7 +248,7 @@ export function openDeckManager(opts = {}) {
               el('a', { class: 'btn', href: `https://archidekt.com/decks/${d.id}`, target: '_blank', rel: 'noopener' }, 'Ver no site ↗'))));
         }
         more.style.display = j.results.length >= 24 ? '' : 'none';
-      } catch (err) { $('.load', res)?.remove(); res.append(el('p', { class: 'err' }, 'Erro na busca de decks: ' + err.message)); }
+      } catch (err) { $('.load', res)?.remove(); res.append(el('p', { class: 'err' }, 'Erro na busca de decks: ' + err.message), (/github.io$/.test(location.hostname) && !serverBase()) ? el('p', { class: 'muted' }, 'A busca de decks públicos precisa do servidor do jogo (não funciona só com o GitHub Pages). Você ainda pode montar decks no Construtor ou importar uma lista de texto.') : null); }
     }
     q.addEventListener('keydown', (e) => e.key === 'Enter' && run(false)); more.onclick = () => run(true);
     pane.append(el('div', { class: 'row' }, q, order, el('label', { class: 'chk' }, fmt, 'só Commander'), el('button', { class: 'btn primary', onclick: () => run(false) }, 'Buscar')),

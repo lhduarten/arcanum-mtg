@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { createRoom, addPlayer, getPlayer, handle, buildDelta, peekMeta } from './game.js';
+import { createRoom, addPlayer, getPlayer, handle, buildDelta, peekMeta, tick } from '../public/engine/game.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -81,7 +81,7 @@ const out = (ws, obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj))
 
 function flush(room) {
   const d = room.dirty; if (!d) return;
-  const empty = !d.cards.size && !d.zones.size && !d.players.size && !d.stack && !d.turn && !d.settings && !d.log.length;
+  const empty = !d.cards.size && !d.zones.size && !d.players.size && !d.stack && !d.turn && !d.settings && !d.combat && !d.log.length;
   if (empty) return;
   for (const ws of roomClients(room)) out(ws, buildDelta(room, ws.pid, ws.known, false));
 }
@@ -94,6 +94,11 @@ function ctxFor(room) {
   return {
     broadcast: (msg) => { for (const ws of roomClients(room)) out(ws, withMeta(ws, { ...msg })); },
     sendTo: (pid, msg) => { for (const ws of roomClients(room)) if (ws.pid === pid) out(ws, withMeta(ws, { ...msg })); },
+    later: (key, ms, fn) => {
+      clearTimeout(room.timers[key]);
+      room.timers[key] = setTimeout(() => { delete room.timers[key]; tick(room, fn); flush(room); }, ms);
+    },
+    cancel: (key) => { clearTimeout(room.timers[key]); delete room.timers[key]; },
   };
 }
 
