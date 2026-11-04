@@ -46,10 +46,11 @@ function buildSeats() {
         el('b', { class: 'lv', title: 'Clique para definir' }),
         el('button', { class: 'lb', 'data-life': 1, title: 'Ganhar vida (Shift = 5)' }, '+')),
       el('div', { class: 'pcounters' },
-        ['poison', 'energy', 'exp'].map((k) => el('span', { class: 'pc pc-' + k, 'data-pc': k, title: { poison: 'Veneno', energy: 'Energia', exp: 'Experiência' }[k] + ' (clique +1, direito −1)' }, el('i'), el('b', {})))),
+        ['poison', 'energy', 'exp', 'rad', 'tix'].map((k) => el('span', { class: 'pc pc-' + k, 'data-pc': k, title: { poison: 'Veneno', energy: 'Energia', exp: 'Experiência', rad: 'Rad', tix: 'Bilhetes' }[k] + ' (clique +1, direito −1)' }, el('i'), el('b', {})))),
       el('div', { class: 'cmdd' }, Object.values(S.players).filter((q) => q.id !== p.id).map((q) =>
-        el('span', { class: 'cd', 'data-from': q.id, style: { '--c': q.color }, title: `Dano de comandante de ${q.name} (clique +1, direito −1)` }, el('i'), el('b', {}), el('em', {}, '/21')))));
-    const piles = el('div', { class: 'piles' }, PILES.map((z) => el('div', { class: 'pile', 'data-zone': z, 'data-pid': p.id, 'data-drop': 'pile' },
+        el('span', { class: 'cd', 'data-from': q.id, style: { '--c': q.color }, title: `Dano de comandante de ${q.name} (clique +1, direito −1)` }, el('i'), el('b', {}), el('em', {}, '/21')))),
+      el('button', { class: 'pmore', title: 'Contadores e dano de comandante' }, '⋯'));
+    const piles = el('div', { class: 'piles' }, PILES.map((z) => el('div', { class: 'pile', 'data-zone': z, 'data-pid': p.id, 'data-drop': 'pile', 'data-label': ZSHORT[z] },
       el('div', { class: 'pile-stack' }), el('div', { class: 'pile-label' }, ZSHORT[z]), el('div', { class: 'pile-count' }))));
     const bf = el('div', { class: 'bf', 'data-pid': p.id, 'data-drop': 'bf' }, el('div', { class: 'bf-hint' }, isMe ? 'Seu campo de batalha' : ''));
     const root = el('section', { class: 'seat' + (isMe ? ' me' : ''), 'data-pid': p.id, style: { '--pc': p.color } }, head, el('div', { class: 'seat-body' }, piles, bf));
@@ -84,9 +85,9 @@ function updateSeat(p) {
   s.root.classList.toggle('dead', p.life <= 0);
   const lv = $('.lv', h); if (lv.textContent !== String(p.life)) { lv.textContent = p.life; lv.classList.remove('bump'); void lv.offsetWidth; lv.classList.add('bump'); }
   lv.classList.toggle('low', p.life <= 10); lv.classList.toggle('crit', p.life <= 5);
-  for (const k of ['poison', 'energy', 'exp']) { const n = $(`.pc-${k}`, h); $('b', n).textContent = p[k]; n.classList.toggle('zero', !p[k]); }
+  for (const k of ['poison', 'energy', 'exp', 'rad', 'tix']) { const n = $(`.pc-${k}`, h); $('b', n).textContent = p[k]; n.classList.toggle('zero', !p[k]); }
   for (const cd of $$('.cd', h)) { const v = p.cmd?.[cd.dataset.from] || 0; $('b', cd).textContent = v; cd.classList.toggle('zero', !v); cd.classList.toggle('lethal', v >= 21); }
-  s.root.classList.toggle('passed', !!p.passed);
+  s.root.classList.toggle('holding', !!p.hold);
 }
 
 // ====================== CARTAS ======================
@@ -124,7 +125,7 @@ function updateCardEl(e, c) {
   }
   // badges / P-T / lealdade
   const cn = c.counters || {};
-  const sig = JSON.stringify([cn, c.dmg, c.tax, c.cmd, c.face, c.zone, f?.power, f?.toughness]);
+  const sig = JSON.stringify([cn, c.dmg, c.mp, c.mt, c.tax, c.cmd, c.face, c.zone, f?.power, f?.toughness]);
   if (e._sig !== sig) {
     e._sig = sig;
     const b = $('.badges', e); b.textContent = '';
@@ -136,10 +137,10 @@ function updateCardEl(e, c) {
     if (c.zone === 'command' && c.tax) b.append(el('span', { class: 'chip k-tax', title: 'Taxa de comandante' }, el('i', {}, '⚑'), el('b', {}, '+' + 2 * c.tax)));
     const pt = $('.ptbox', e);
     const isCreature = /Creature/.test(f?.type || '');
-    const mod = (cn['+1/+1'] || 0) - (cn['-1/-1'] || 0);
-    if (c.zone === 'battlefield' && isCreature && (mod || c.dmg) && /^-?\d+$/.test(f.power) && /^-?\d+$/.test(f.toughness)) {
-      const P = +f.power + mod, T = +f.toughness + mod;
-      pt.textContent = `${P}/${T - (c.dmg || 0)}`; pt.className = 'ptbox on ' + (c.dmg ? 'hurt' : mod > 0 ? 'up' : 'down');
+    const mod = (cn['+1/+1'] || 0) - (cn['-1/-1'] || 0); const mp = mod + (c.mp || 0), mt = mod + (c.mt || 0);
+    if (c.zone === 'battlefield' && isCreature && (mp || mt || c.dmg) && /^-?\d+$/.test(f.power) && /^-?\d+$/.test(f.toughness)) {
+      const P = +f.power + mp, T = +f.toughness + mt;
+      pt.textContent = `${P}/${T - (c.dmg || 0)}`; pt.className = 'ptbox on ' + (c.dmg ? 'hurt' : mp + mt > 0 ? 'up' : 'down');
     } else { pt.textContent = ''; pt.className = 'ptbox'; }
     const loy = $('.loy', e); const lv = cn.loyalty ?? cn.defense;
     if (c.zone === 'battlefield' && lv != null) { loy.textContent = lv; loy.className = 'loy on' + (cn.defense != null ? ' def' : ''); loy.dataset.k = cn.loyalty != null ? 'loyalty' : 'defense'; } else { loy.textContent = ''; loy.className = 'loy'; }
@@ -181,7 +182,6 @@ function onZone(key) {
   if (zone === 'hand' && pid === S.you) {
     const hand = $('#hand'); const ids = zoneIds(pid, 'hand');
     ids.forEach((id, i) => { const e = els.get(id); if (e && hand.children[i] !== e) hand.insertBefore(e, hand.children[i] || null); });
-    $('#handcount').textContent = ids.length;
     hand.classList.toggle('empty', !ids.length);
     document.documentElement.style.setProperty('--hn', Math.max(ids.length, 1));
   }
@@ -219,7 +219,9 @@ on('delta', (ch) => {
   for (const k of ch.zones) onZone(k);
   if (ch.stack) renderStack();
   if (ch.turn) { renderTurn(); Object.values(S.players).forEach(updateSeat); }
-  if (ch.settings) renderSettings();
+  if (ch.combat || ch.full) { renderCombat(); renderControls(); }
+  if (ch.players || ch.zones.has(S.you + ':hand')) { renderMull(); renderControls(); }
+  if (ch.cards.size && S.combat) renderCombat();
   if (ch.log.length) appendLog(ch.log);
   if (ch.full) { for (const k of Object.keys(S.zones)) onZone(k); renderTurn(); renderSettings(); }
 });
@@ -230,31 +232,107 @@ on('alert', (m) => { showBanner(m.text, m.kind); beep(m.kind === 'turn' ? 'turn'
 function renderStack() {
   const z = $('#stackzone'); const n = S.stack.length;
   z.classList.toggle('has', n > 0);
-  const box = $('#stackcards'); S.stack.forEach((id, i) => { const e = els.get(id); if (e && box.children[i] !== e) box.insertBefore(e, box.children[i] || null); });
-  const top = getCard(S.stack[n - 1]);
+  const box = $('#stackcards');
+  S.stack.forEach((id, i) => { const e = els.get(id); if (e && box.children[i] !== e) box.insertBefore(e, box.children[i] || null); });
   $('#stacktitle').textContent = n ? `Pilha · ${n}` : 'Pilha';
   $('#btn-resolve').disabled = !n;
-  const passed = Object.values(S.players).filter((p) => p.passed).length, tot = Object.values(S.players).filter((p) => p.connected).length;
-  $('#btn-pass').classList.toggle('on', !!me()?.passed);
-  $('#passinfo').textContent = n || passed ? `${passed}/${tot} passaram` : '';
+  const held = Object.values(S.players).filter((p) => p.connected && p.hold);
+  $('#btn-hold').classList.toggle('on', !!me()?.hold);
+  $('#passinfo').textContent = held.length ? `${held.map((p) => p.name).join(', ')} quer responder` : '';
+  const bar = $('#stackbar i');
+  if (n && S.stackIn > 0 && !held.length) {
+    bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth;
+    bar.style.transition = `width ${S.stackIn}ms linear`; bar.style.width = '0%'; bar.parentNode.classList.remove('held');
+  } else { bar.style.transition = 'none'; bar.style.width = n ? '100%' : '0%'; bar.parentNode.classList.toggle('held', !!n && !!held.length); }
 }
+
 
 // ====================== TURNO ======================
-const PHASES = [['upkeep', 'Manutenção'], ['draw', 'Compra'], ['main1', 'Principal 1'], ['combat', 'Combate'], ['main2', 'Principal 2'], ['end', 'Final']];
+const PHASE_NAME = { upkeep: 'Manutenção', draw: 'Compra', main1: 'Principal 1', combat: 'Combate', main2: 'Principal 2', end: 'Final' };
+let attackTarget = null;
+
+
 function renderTurn() {
   const t = S.turn; const ap = S.players[t.active];
-  $('#turnnum').textContent = t.num ? `Turno ${t.num}` : 'Aguardando início';
-  $('#turnwho').textContent = ap ? ap.name : '';
-  $('#turnwho').style.color = ap?.color || '';
-  $('#btn-start').classList.toggle('hidden', t.num > 0);
-  $('#btn-next').classList.toggle('hidden', t.num === 0);
-  const box = $('#phases'); if (!box.children.length) PHASES.forEach(([k, n]) => box.append(el('button', { 'data-ph': k, class: 'ph', onclick: () => send('phase', { phase: k }) }, n)));
-  $$('.ph', box).forEach((b) => b.classList.toggle('on', b.dataset.ph === t.phase && t.num > 0));
+  $('#turnnum').textContent = t.num ? `Turno ${t.num}` : 'Aguardando jogadores';
+  const who = $('#turnwho'); who.textContent = ap ? ap.name : ''; who.style.color = ap?.color || '';
+  $('#phasename').textContent = t.num ? PHASE_NAME[t.phase] || '' : '';
+  renderControls();
 }
 
-function renderSettings() {
-  for (const [k, v] of Object.entries(S.settings)) { const i = $(`[data-setting="${k}"]`); if (i) i.checked = v; }
+function renderControls() {
+  const t = S.turn, cb = S.combat, mine = t.active === S.you, p = me();
+  const pb = $('#btn-primary'), nb = $('#btn-next'), bar = $('#combatbar');
+  let label = '', fn = null, showNext = false, hint = '';
+  if (!p) return;
+  if (!t.num) {
+    if (p.deck && p.keep) { label = 'Iniciar jogo'; fn = () => send('start'); }
+  } else if (mine) {
+    if (cb?.step === 'declare') {
+      label = cb.atk.length ? `Confirmar ataque (${cb.atk.length})` : 'Sem ataque'; fn = () => send('endDeclare');
+      hint = cb.atk.length ? 'Duplo clique em mais criaturas para atacar, ou confirme.' : 'Duplo clique nas suas criaturas para atacar (ou selecione e pressione A).';
+    } else if (cb?.step === 'block') {
+      label = 'Resolver dano'; fn = () => send('resolveCombat'); hint = 'Aguardando os bloqueios…';
+    } else if (['upkeep', 'draw', 'main1'].includes(t.phase)) { label = '⚔ Combate'; fn = () => send('phase', { phase: 'combat' }); showNext = true; }
+    else { label = 'Fim do turno'; fn = () => send('next'); }
+  } else if (cb?.step === 'block' && cb.atk.some((a) => a.target === S.you) && !cb.done[S.you]) {
+    label = 'Concluir bloqueios'; fn = () => send('doneBlock');
+    hint = 'Selecione suas criaturas e clique no atacante para bloquear.';
+  } else if (cb?.step === 'block') hint = 'Aguardando os bloqueios…';
+  pb.classList.toggle('hidden', !label); pb.textContent = label; pb.onclick = fn;
+  nb.classList.toggle('hidden', !showNext); nb.onclick = () => send('next');
+  bar.classList.toggle('hidden', !hint);
+  $('#combattext').textContent = hint;
+  // alvo do ataque (multiplayer)
+  const old = $('.atkt', bar); old?.remove();
+  const opps = Object.values(S.players).filter((q) => q.id !== S.you && q.connected);
+  if (mine && cb?.step === 'declare' && opps.length > 1) {
+    if (!opps.some((q) => q.id === attackTarget)) attackTarget = opps[0].id;
+    const box = el('span', { class: 'atkt' }, opps.map((q) => el('button', { class: 'chipbtn' + (q.id === attackTarget ? ' on' : ''), style: { '--c': q.color }, onclick: () => { attackTarget = q.id; renderControls(); } }, q.name)));
+    bar.prepend(box);
+  }
 }
+
+function renderCombat() {
+  const cb = S.combat;
+  for (const e of els.values()) { e.classList.remove('attacking', 'blocking', 'blocked'); $('.cbadge', e)?.remove(); }
+  if (!cb) return;
+  const tag = (id, cls, text) => { const e = els.get(id); if (!e) return; e.classList.add(cls); e.append(el('span', { class: 'cbadge ' + cls }, text)); };
+  for (const a of cb.atk) {
+    const n = (cb.blocks[a.id] || []).length;
+    tag(a.id, 'attacking', `⚔ ${S.players[a.target]?.name || ''}${n ? ' · 🛡' + n : ''}`);
+    if (n) els.get(a.id)?.classList.add('blocked');
+  }
+  for (const [aid, list] of Object.entries(cb.blocks)) for (const b of list) tag(b, 'blocking', `🛡 ${nameOf(S.cards[aid] || {})}`);
+}
+
+function renderSettings() {}
+
+// ====================== MULLIGAN ======================
+let mullBottom = new Set(), mullSig = '';
+function renderMull() {
+  const p = me(); const box = $('#mull');
+  const show = !!p && p.deck && !p.keep;
+  box.classList.toggle('hidden', !show);
+  if (!show) { mullSig = ''; return; }
+  const need = Math.max(0, p.mulls - 1);
+  const ids = zoneIds(S.you, 'hand');
+  const sig = ids.join(',') + '|' + p.mulls;
+  if (sig !== mullSig) { mullSig = sig; mullBottom = new Set(); }
+  $('#mulltitle').textContent = p.mulls ? `Mulligan ${p.mulls}` : 'Sua mão inicial';
+  $('#mulltext').textContent = need ? `Escolha ${need} carta(s) para o fundo da biblioteca (${mullBottom.size}/${need}).` : p.mulls ? 'O primeiro mulligan é grátis no Commander. Manter esta mão?' : 'Manter esta mão ou fazer mulligan?';
+  const hand = $('#mullhand'); hand.textContent = '';
+  for (const id of ids) {
+    const c = S.cards[id]; const f = faceOf(c); if (!f) continue;
+    const b = el('button', { class: 'mc' + (mullBottom.has(id) ? ' sel' : ''), title: f.name, onclick: () => { if (!need) return; if (mullBottom.has(id)) mullBottom.delete(id); else if (mullBottom.size < need) mullBottom.add(id); renderMull(); } }, el('img', { src: f.n || f.s, alt: f.name }));
+    hand.append(b);
+  }
+  $('#btn-keep').disabled = mullBottom.size !== need;
+  $('#btn-keep').onclick = () => send('keep', { bottom: [...mullBottom] });
+  $('#btn-mull').onclick = () => send('mulligan');
+  $('#btn-mull').classList.toggle('hidden', p.mulls >= 6);
+}
+
 
 // ====================== LOG / CHAT ======================
 function appendLog(list) {
@@ -267,6 +345,7 @@ function appendLog(list) {
     box.append(line);
   }
   while (box.children.length > 300) box.firstChild.remove();
+  if (!$('#game').classList.contains('sideopen')) { const chats = list.filter((l) => l.chat).length; if (chats) { unread += chats; const b = $('#chatbadge'); b.textContent = unread; b.classList.remove('hidden'); } }
   if (stick) box.scrollTop = box.scrollHeight;
 }
 
@@ -322,6 +401,16 @@ function ask(title, def = '') {
   });
 }
 
+function playerMenu(pid, x, y) {
+  const p = S.players[pid];
+  const items = [{ title: p.name }];
+  for (const [k, lbl] of [['poison', '☣ Veneno'], ['energy', '⚡ Energia'], ['exp', '★ Experiência'], ['rad', '☢ Rad'], ['tix', '🎟 Bilhetes']]) items.push({ label: `${lbl} (${p[k] || 0})`, sub: [{ label: '+1', fn: () => send('pcount', { pid, kind: k, delta: 1 }) }, { label: '−1', fn: () => send('pcount', { pid, kind: k, delta: -1 }) }] });
+  items.push({ sep: true });
+  for (const q of Object.values(S.players)) if (q.id !== pid) items.push({ label: `Dano de comandante de ${q.name} (${p.cmd?.[q.id] || 0}/21)`, sub: [1, 2, 3, 5].map((n) => ({ label: `+${n}`, fn: () => send('cmdDmg', { to: pid, from: q.id, delta: n }) })).concat([{ label: '−1', fn: () => send('cmdDmg', { to: pid, from: q.id, delta: -1 }) }]) });
+  items.push({ sep: true }, { label: 'Ping neste jogador', icon: '📍', fn: () => send('ping', { kind: 'point', pid, x: 0.5, y: 0.1 }) });
+  menu(items, x, y);
+}
+
 function cardMenu(c, x, y, ids) {
   ids ||= [c.id];
   const f = faceOf(c); const multi = S.meta[c.sid]?.faces.length > 1;
@@ -332,6 +421,8 @@ function cardMenu(c, x, y, ids) {
   if (c.zone === 'battlefield') {
     items.push({ label: c.tapped ? 'Desvirar' : 'Virar', icon: '↻', kbd: 'T', fn: () => send('tap', { ids }) });
     items.push({ label: 'Contadores', icon: '◆', sub: counterMenu(ids) });
+    items.push({ label: 'Bônus até o fim do turno', icon: '⇧', sub: [[1, 1], [2, 2], [3, 3], [1, 0], [2, 0], [0, 2], [-1, -1], [-2, -2]].map(([a, b]) => ({ label: `${a >= 0 ? '+' : ''}${a}/${b >= 0 ? '+' : ''}${b}`, fn: () => send('pump', { ids, p: a, t: b }) })) });
+    if (S.combat?.step === 'declare' && S.turn.active === S.you) items.push({ label: 'Atacar / cancelar ataque', icon: '⚔', kbd: 'A', fn: () => send('attack', { ids, target: attackTarget }) });
     items.push({ label: 'Copiar como ficha', icon: '⧉', sub: [1, 2, 3, 5].map((n) => ({ label: `${n}×`, fn: () => send('copy', { id: c.id, n }) })) });
     if (ids.length > 1) items.push({ label: 'Empilhar seleção aqui', icon: '▤', fn: () => send('stackAt', { ids }) }, { label: 'Espalhar seleção em linha', icon: '▥', fn: () => send('spread', { ids }) });
     items.push({ label: c.fd ? 'Virar para cima' : 'Virar face para baixo', icon: '🂠', kbd: 'F', fn: () => send('flip', { ids }) });
@@ -585,6 +676,15 @@ function dropOn(t, ids, g, e) {
 
 function clickCard(g, e) {
   const c = g.c;
+  const cb = S.combat;
+  if (cb?.step === 'block' && c.zone === 'battlefield') {
+    const atk = cb.atk.find((a) => a.id === c.id);
+    if (atk && atk.target === S.you) {
+      const mine = [...sel].filter((id) => { const x = S.cards[id]; return x && x.pid === S.you && x.zone === 'battlefield'; });
+      if (mine.length) { send('block', { ids: mine, attacker: c.id }); sel.clear(); renderSel(); } else toast('Selecione suas criaturas primeiro, depois clique no atacante.');
+      return;
+    }
+  }
   if (g.ce.closest('.pile-stack')) { const p = g.ce.closest('.pile'); openZone(p.dataset.pid, p.dataset.zone); return; }
   if (c.zone === 'battlefield' && g.ce.closest('.bf')) {
     if (g.ctrl) { sel.has(g.id) ? sel.delete(g.id) : sel.add(g.id); } else { sel.clear(); sel.add(g.id); }
@@ -597,8 +697,12 @@ function renderSel() { for (const [id, e] of els) e.classList.toggle('selected',
 document.addEventListener('dblclick', (e) => {
   const ce = e.target.closest('.card[data-id]'); if (!ce || interactive(e.target)) return;
   const c = getCard(ce.dataset.id); if (!c || !canControl(c)) return;
-  if (c.zone === 'battlefield') { const ids = sel.has(c.id) ? [...sel] : [c.id]; send('tap', { ids }); }
-  else if (c.zone === 'hand') mv([c.id], 'battlefield', {});
+  const cb = S.combat;
+  if (c.zone === 'battlefield') {
+    if (cb?.step === 'declare' && S.turn.active === S.you) { send('attack', { ids: sel.has(c.id) ? [...sel] : [c.id], target: attackTarget }); return; }
+    if (cb?.step === 'block' && Object.values(cb.blocks).some((l) => l.includes(c.id))) { send('unblock', { ids: [c.id] }); return; }
+    send('tap', { ids: sel.has(c.id) ? [...sel] : [c.id] });
+  } else if (c.zone === 'hand') mv([c.id], 'battlefield', {});
   else if (c.zone !== 'stack' && c.zone !== 'reveal') mv([c.id], 'battlefield', { force: true });
   else if (c.zone === 'stack') send('resolve');
 });
@@ -611,6 +715,7 @@ document.addEventListener('click', (e) => {
   if (loy) { const id = loy.closest('.card').dataset.id; send('counter', { id, kind: loy.dataset.k, delta: e.shiftKey ? -1 : 1, silent: true }); return; }
   const lb = e.target.closest('.lb'); if (lb) { const pid = lb.closest('.seat').dataset.pid; send('life', { pid, delta: (e.shiftKey ? 5 : 1) * +lb.dataset.life, quiet: false }); return; }
   const lv = e.target.closest('.lv'); if (lv) { const pid = lv.closest('.seat').dataset.pid; ask('Definir vida', String(S.players[pid].life)).then((v) => { if (v != null && /^-?\d+$/.test(v)) send('life', { pid, set: +v }); }); return; }
+  const pm = e.target.closest('.pmore'); if (pm) { playerMenu(pm.closest('.seat').dataset.pid, e.clientX, e.clientY); return; }
   const pc = e.target.closest('.pc'); if (pc) { send('pcount', { pid: pc.closest('.seat').dataset.pid, kind: pc.dataset.pc, delta: e.shiftKey ? -1 : 1 }); return; }
   const cd = e.target.closest('.cd'); if (cd) { send('cmdDmg', { to: cd.closest('.seat').dataset.pid, from: cd.dataset.from, delta: e.shiftKey ? -1 : 1 }); return; }
   const pile = e.target.closest('.pile'); if (pile && !e.target.closest('.card')) openZone(pile.dataset.pid, pile.dataset.zone);
@@ -684,8 +789,9 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'v') act((l) => l.forEach((i) => send('counter', { id: i, kind: '-1/-1', delta: 1 })));
   else if (k === '+' || k === '=') act((l) => l.forEach((i) => send('counter', { id: i, kind: getCard(i).counters?.loyalty != null ? 'loyalty' : '+1/+1', delta: 1 })));
   else if (k === '-') act((l) => l.forEach((i) => send('counter', { id: i, kind: getCard(i).counters?.loyalty != null ? 'loyalty' : '-1/-1', delta: 1 })));
-  else if (k === ' ') { send(S.stack.length ? 'resolve' : 'pass'); e.preventDefault(); }
-  else if (k === 'p') { send('pass'); }
+  else if (k === ' ') { if (S.stack.length) send('resolve'); else { const pb = $('#btn-primary'); if (!pb.classList.contains('hidden')) pb.click(); } e.preventDefault(); }
+  else if (k === 'a') { const ids2 = [...sel].filter((i) => canControl(getCard(i))); if (ids2.length) send('attack', { ids: ids2, target: attackTarget }); }
+  else if (k === 'b') send('doneBlock');
   else if (k === 'escape') { sel.clear(); renderSel(); closeMenu(); }
   else if (k === 'enter') { $('#chatin').focus(); e.preventDefault(); }
   else if ('12345'.includes(k) && k.length === 1) callout(CALLS[+k - 1][1]);
@@ -718,19 +824,53 @@ export function openTokens(x, y) {
   inp.addEventListener('keydown', (e) => e.key === 'Enter' && run()); inp.focus();
 }
 
+// ====================== MENU / CONFIG ======================
+function settingsModal() {
+  const m = modal({ title: 'Configurações', cls: 'small' });
+  const sw = (key, label) => { const i = el('input', { type: 'checkbox', checked: !!S.settings[key], onchange: () => send('settings', { [key]: i.checked }) }); return el('label', { class: 'sw' }, i, el('span', {}, label)); };
+  const delay = el('select', { class: 'inp sel', onchange: () => send('settings', { stackDelay: +delay.value }) }, [2, 4, 6, 10].map((n) => el('option', { value: n, selected: (S.settings.stackDelay || 4) === n }, `${n}s`)));
+  const zr = el('input', { type: 'range', min: 0.7, max: 1.7, step: 0.05, value: zoom, oninput: () => { setZoom(+zr.value); try { localStorage.setItem('mtg.zoom', zr.value); } catch {} } });
+  m.body.append(
+    el('h4', {}, 'Automação'),
+    sw('autoPay', 'Pagar mana automaticamente'), sw('autoResolve', 'Resolver a pilha sozinha'),
+    el('div', { class: 'sw' }, el('span', {}, 'Tempo para responder'), delay),
+    sw('autoDamage', 'Dano letal destrói criaturas'), sw('autoCommander', 'Comandante volta à zona de comando'),
+    sw('autoUntap', 'Desvirar no início do turno'), sw('autoDraw', 'Comprar no início do turno'),
+    el('h4', {}, 'Tamanho das cartas'), zr);
+}
+
+function mainMenu(x, y) {
+  const solo = S.solo;
+  menu([
+    { label: 'Comprar carta', icon: '🂠', kbd: 'D', fn: () => send('draw', { n: 1 }) },
+    { label: 'Desfazer', icon: '↶', kbd: 'Ctrl+Z', fn: () => send('undo') },
+    { label: 'Desvirar tudo', icon: '↻', kbd: 'U', fn: () => send('untapAll') },
+    { label: 'Criar ficha…', icon: '✚', fn: () => openTokens() },
+    { sep: true },
+    { label: 'Decks', icon: '📚', fn: () => window.dispatchEvent(new Event('arcanum:decks')) },
+    !solo ? { label: 'Convidar para a sala', icon: '🔗', fn: () => window.dispatchEvent(new Event('arcanum:invite')) } : null,
+    { label: 'Registro e chat', icon: '💬', fn: toggleSide },
+    { label: 'Avisos rápidos', icon: '📣', sub: CALLS.map(([i, t]) => ({ label: `${i}  ${t}`, fn: () => callout(t) })) },
+    { sep: true },
+    { label: 'Configurações', icon: '⚙', fn: settingsModal },
+    { label: 'Atalhos', icon: '⌨', fn: () => $('#help').classList.toggle('hidden') },
+    { label: solo ? 'Sair do modo solo' : 'Sair da sala', icon: '⎋', danger: true, fn: () => window.dispatchEvent(new Event('arcanum:leave')) },
+  ], x, y);
+}
+
+let unread = 0;
+function toggleSide(force) {
+  const g = $('#game'); const open = force === undefined || typeof force === 'object' ? !g.classList.contains('sideopen') : force;
+  g.classList.toggle('sideopen', open);
+  if (open) { unread = 0; $('#chatbadge').classList.add('hidden'); const l = $('#log'); l.scrollTop = l.scrollHeight; }
+}
+
 // ====================== INIT ======================
 export function initTable() {
-  // stack
   $('#stackzone').dataset.drop = 'stack'; $('#hand').dataset.drop = 'hand'; $('#handbar').dataset.drop = 'hand';
   $('#btn-resolve').onclick = () => send('resolve');
-  $('#btn-pass').onclick = () => send('pass');
-  $('#btn-start').onclick = () => send('start');
-  $('#btn-next').onclick = () => send('next');
-  $('#btn-tokens').onclick = () => openTokens();
-  $('#btn-undo').onclick = () => send('undo');
-  $('#btn-untap').onclick = () => send('untapAll');
-  $('#btn-draw').onclick = () => send('draw', { n: 1 });
-  $$('[data-setting]').forEach((i) => i.addEventListener('change', () => send('settings', { [i.dataset.setting]: i.checked })));
+  $('#btn-hold').onclick = () => send('hold');
+  $('#btn-menu').onclick = (e) => { const r = e.currentTarget.getBoundingClientRect(); mainMenu(Math.max(8, r.right - 230), r.bottom + 6); };
+  $('#btn-chat').onclick = toggleSide; $('#btn-side-x').onclick = () => toggleSide(false);
   $('#chatform').addEventListener('submit', (e) => { e.preventDefault(); const v = $('#chatin').value.trim(); if (v) send('chat', { text: v }); $('#chatin').value = ''; $('#chatin').blur(); });
-  const calls = $('#callouts'); CALLS.forEach(([i, t], n) => calls.append(el('button', { class: 'call', title: `${t} (tecla ${n + 1})`, onclick: () => callout(t) }, el('span', {}, i), el('em', {}, t))));
 }
